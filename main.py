@@ -72,12 +72,12 @@ def webhook():
     action = data.get("message")
 
     if action == "LONG":
-        client.create_test_order(symbol=SYMBOL, side="BUY", type="MARKET", quantity=QUANTITY)
+        client.order_market_buy(symbol=SYMBOL, quantity=QUANTITY)
         print("✅ Orden LONG enviada")
         return {"status": "long order sent"}, 200
 
     elif action == "SHORT":
-        client.create_test_order(symbol=SYMBOL, side="SELL", type="MARKET", quantity=QUANTITY)
+        client.order_market_sell(symbol=SYMBOL, quantity=QUANTITY)
         print("✅ Orden SHORT enviada")
         return {"status": "short order sent"}, 200
 
