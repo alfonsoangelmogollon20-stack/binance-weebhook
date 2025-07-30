@@ -44,18 +44,16 @@ def get_db_connection():
 # --- LÓGICA DE TRADING (con TP/SL por ATR) ---
 def open_trade(symbol, side, quantity, atr_value):
     try:
-            # 1. Abrir posición
-    order = client.futures_create_order(symbol=symbol, side=side, type='MARKET', quantity=quantity)
-
-time.sleep(2) 
+        # 1. Abrir posición
+        order = client.futures_create_order(symbol=symbol, side=side, type='MARKET', quantity=quantity)
+    
+        time.sleep(2) # Pausa de 2 segundos
     
         # Hacemos una consulta para obtener los datos de la orden ya ejecutada
-    order_details = client.futures_get_order(symbol=symbol, orderId=order['orderId'])
+        order_details = client.futures_get_order(symbol=symbol, orderId=order['orderId'])
     
-    # Usamos directamente el 'avgPrice', que en esta consulta ya debería estar correcto.
-    entry_price = float(order_details.get('avgPrice', 0.0))
-
-
+        # Usamos directamente el 'avgPrice', que en esta consulta ya debería estar correcto.
+        entry_price = float(order_details.get('avgPrice', 0.0))
 
         # 2. Guardar en la BD
         conn = get_db_connection()
@@ -89,6 +87,8 @@ time.sleep(2)
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
 
 # --- ENDPOINTS (RUTAS WEB) ---
 @app.route('/')
