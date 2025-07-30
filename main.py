@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, render_template_string
 from binance.client import Client
 
 API_KEY = "vFoo8iDlNkwe4X5S3znciN46TT6TOYSbrDH2TrMte6nMe22CLiYnkUvGFHAMLXw2"
@@ -8,14 +8,13 @@ client = Client(API_KEY, API_SECRET, testnet=True)
 app = Flask(__name__)
 
 SYMBOL = "BTCUSDT"
-QUANTITY = 0.001
+QUANTITY = 0.0033  # Simula una inversión de ~200 USDT a BTC 60k
 
-# HTML
 html_template = """
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Panel de Órdenes y Saldo</title>
+  <title>Panel de Órdenes</title>
   <style>
     body { font-family: Arial; background: #111; color: #fff; padding: 20px; }
     h2, h3 { color: #0f0; }
@@ -29,7 +28,7 @@ html_template = """
   </style>
 </head>
 <body>
-  <h2>Panel de Órdenes BTCUSDT (Testnet)</h2>
+  <h2>📊 Panel BTCUSDT (Testnet)</h2>
   <div class="saldo">
     <h3>💰 Saldos:</h3>
     <p><strong>USDT:</strong> {{ usdt_balance }} USDT</p>
@@ -43,8 +42,10 @@ html_template = """
         <th>Tipo</th>
         <th>Precio Entrada</th>
         <th>Cantidad</th>
+        <th>Inversión (USDT)</th>
         <th>Estado</th>
-        <th>Ganancia/Perdida (estimada)</th>
+        <th>Ganancia/Perdida</th>
+        <th>%</th>
       </tr>
     </thead>
     <tbody>
@@ -53,8 +54,10 @@ html_template = """
         <td>{{ orden.side }}</td>
         <td>{{ orden.price }}</td>
         <td>{{ orden.executedQty }}</td>
+        <td>{{ orden.inversion }}</td>
         <td>{{ orden.status }}</td>
         <td class="{{ 'ganancia' if orden.pnl >= 0 else 'perdida' }}">{{ orden.pnl }} USDT</td>
+        <td class="{{ 'ganancia' if orden.porcentaje >= 0 else 'perdida' }}">{{ orden.porcentaje }}%</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -94,14 +97,18 @@ def panel():
         if o["status"] == "FILLED" and float(o["executedQty"]) > 0:
             price_entry = float(o["price"])
             qty = float(o["executedQty"])
-            pnl = (actual_price - price_entry) * qty if o["side"] == "BUY" else (price_entry - actual_price) * qty
+            inversion = round(price_entry * qty, 2)
+            ganancia = (actual_price - price_entry) * qty if o["side"] == "BUY" else (price_entry - actual_price) * qty
+            porcentaje = (ganancia / inversion) * 100 if inversion > 0 else 0
 
             ordenes_visibles.append({
                 "side": o["side"],
                 "price": o["price"],
                 "executedQty": o["executedQty"],
                 "status": o["status"],
-                "pnl": round(pnl, 3)
+                "inversion": inversion,
+                "pnl": round(ganancia, 2),
+                "porcentaje": round(porcentaje, 2)
             })
 
     return render_template_string(html_template,
