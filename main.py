@@ -43,13 +43,22 @@ def get_db_connection():
 # --- LÓGICA DE TRADING (con TP/SL por ATR) ---
 def open_trade(symbol, side, quantity, atr_value):
     try:
-        # 1. Abrir posición
-        order = client.futures_create_order(symbol=symbol, side=side, type='MARKET', quantity=quantity)
-        entry_price = float(order['avgPrice'])
-        
-        if entry_price == 0:
-            filled_order = client.futures_get_order(symbol=symbol, orderId=order['orderId'])
-            entry_price = float(filled_order['avgPrice'])
+            # 1. Abrir posición
+    order = client.futures_create_order(symbol=symbol, side=side, type='MARKET', quantity=quantity)
+    
+    # Hacemos una consulta para obtener los datos de la orden ya ejecutada
+    order_details = client.futures_get_order(symbol=symbol, orderId=order['orderId'])
+    
+    cummulative_quote_qty = float(order_details['cummulativeQuoteQty']) # Costo total en USDT
+    executed_qty = float(order_details['executedQty']) # Cantidad total ejecutada
+    
+    # Calculamos el precio de entrada real. Se añade una comprobación para evitar división por cero.
+    if executed_qty > 0:
+        entry_price = cummulative_quote_qty / executed_qty
+    else:
+        # Si por alguna razón la cantidad es 0, usamos el avgPrice como último recurso
+        entry_price = float(order_details.get('avgPrice', 0.0))
+
 
         # 2. Guardar en la BD
         conn = get_db_connection()
