@@ -97,8 +97,6 @@ def dashboard():
 
 @app.route('/api/positions')
 def get_positions():
-    # Esta función es la misma que te di antes, no cambia.
-    # ... (busca las operaciones abiertas, calcula el PnL y las devuelve como JSON)
     conn = get_db_connection()
     open_trades = conn.execute('SELECT * FROM trades WHERE status = "OPEN"').fetchall()
     conn.close()
@@ -106,21 +104,26 @@ def get_positions():
     positions_with_pnl = []
     for trade in open_trades:
         try:
-                                    current_price = float(client.futures_ticker(symbol=trade['symbol'])['lastPrice'])
-
+            # Línea NUEVA Y CORRECTA para el precio de Futuros:
+            current_price = float(client.futures_ticker(symbol=trade['symbol'])['lastPrice'])
+            
+            # Calcular PnL no realizado
             if trade['side'] == 'LONG':
                 pnl = (current_price - trade['entry_price']) * trade['quantity']
-            else:
+            else: # SHORT
                 pnl = (trade['entry_price'] - current_price) * trade['quantity']
             
+            # Convertir la fila de la base de datos a un diccionario
             position_dict = dict(trade)
             position_dict['current_price'] = current_price
             position_dict['unrealized_pnl'] = pnl
             positions_with_pnl.append(position_dict)
+            
         except Exception as e:
             print(f"Error calculando PnL para {trade['symbol']}: {e}")
 
     return jsonify(positions_with_pnl)
+
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
