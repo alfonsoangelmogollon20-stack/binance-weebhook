@@ -125,10 +125,13 @@ def get_positions():
     return jsonify(positions_with_pnl)
 
 
-@app.route('/webhook', methods=['POST'])
+# Reemplaza tu función webhook con esta
+@app.route('/webhook', methods=['POST'], strict_slashes=False)
 def webhook():
     data = request.json
-    if data.get('passphrase') != WEBHOOK_PASSPHRASE:
+    
+    # Esta línea ahora es más robusta: comprueba si data existe y limpia la contraseña
+    if not data or data.get('passphrase', '').strip() != WEBHOOK_PASSPHRASE:
         return {"status": "error", "message": "No autorizado"}, 401
     
     result = open_trade(
@@ -138,6 +141,7 @@ def webhook():
         atr_value=data['atr']
     )
     return jsonify(result)
+
 
 # --- INICIO DE LA APLICACIÓN ---
 if __name__ == "__main__":
