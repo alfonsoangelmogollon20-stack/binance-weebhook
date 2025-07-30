@@ -103,7 +103,7 @@ def get_positions():
     positions_with_pnl = []
     for trade in open_trades:
         try:
-                        current_price = float(client.futures_mark_price(symbol=trade['symbol'])['markPrice'])
+                                    current_price = float(client.futures_ticker(symbol=trade['symbol'])['lastPrice'])
 
             if trade['side'] == 'LONG':
                 pnl = (current_price - trade['entry_price']) * trade['quantity']
