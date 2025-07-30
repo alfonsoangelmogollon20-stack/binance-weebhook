@@ -1,2 +1,4 @@
-flask
+Flask
 python-binance
+requests
+gunicorn
