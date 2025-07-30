@@ -1,121 +1,140 @@
-from flask import Flask, request, render_template_string
+# main.py - Versión final para GitHub/Render
+import os
+import sqlite3
+from flask import Flask, request, jsonify, render_template
 from binance.client import Client
 
-API_KEY = "vFoo8iDlNkwe4X5S3znciN46TT6TOYSbrDH2TrMte6nMe22CLiYnkUvGFHAMLXw2"
-API_SECRET = "lPIhxJaBkejBdlt501lYEPbCKraScMNLb6VW4BKrpGl5QobsCEij3Xpw9gEDJVtY"
+# --- CONFIGURACIÓN ---
+# Recuerda poner esto en las "Environment Variables" de Render
+API_KEY = os.environ.get('BINANCE_API_KEY')
+API_SECRET = os.environ.get('BINANCE_API_SECRET')
+WEBHOOK_PASSPHRASE = os.environ.get('WEBHOOK_PASSPHRASE')
 
-client = Client(API_KEY, API_SECRET, testnet=True)
+client = Client(API_KEY, API_SECRET, testnet=True) # True para pruebas
 app = Flask(__name__)
 
-SYMBOL = "BTCUSDT"
-QUANTITY = 0.0033  # Simula una inversión de ~200 USDT a BTC 60k
+# --- LÓGICA DE BASE DE DATOS AUTOMÁTICA ---
+def init_db():
+    """Crea la base de datos y la tabla si no existen."""
+    conn = sqlite3.connect('trades.db')
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS trades (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol TEXT NOT NULL,
+      side TEXT NOT NULL,
+      quantity REAL NOT NULL,
+      entry_price REAL NOT NULL,
+      entry_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      status TEXT NOT NULL,
+      pnl REAL
+    );
+    """)
+    conn.commit()
+    conn.close()
+    print("Base de datos lista.")
 
-html_template = """
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Panel de Órdenes</title>
-  <style>
-    body { font-family: Arial; background: #111; color: #fff; padding: 20px; }
-    h2, h3 { color: #0f0; }
-    .saldo { margin-bottom: 15px; padding: 10px; background: #222; border-radius: 5px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #555; padding: 8px; text-align: center; }
-    th { background-color: #222; }
-    tr:nth-child(even) { background-color: #1c1c1c; }
-    .ganancia { color: lime; }
-    .perdida { color: red; }
-  </style>
-</head>
-<body>
-  <h2>📊 Panel BTCUSDT (Testnet)</h2>
-  <div class="saldo">
-    <h3>💰 Saldos:</h3>
-    <p><strong>USDT:</strong> {{ usdt_balance }} USDT</p>
-    <p><strong>BTC:</strong> {{ btc_balance }} BTC</p>
-    <p><strong>Precio Actual:</strong> {{ actual_price }} USDT</p>
-  </div>
+def get_db_connection():
+    """Se conecta a la base de datos."""
+    conn = sqlite3.connect('trades.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-  <table>
-    <thead>
-      <tr>
-        <th>Tipo</th>
-        <th>Precio Entrada</th>
-        <th>Cantidad</th>
-        <th>Inversión (USDT)</th>
-        <th>Estado</th>
-        <th>Ganancia/Perdida</th>
-        <th>%</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for orden in ordenes %}
-      <tr>
-        <td>{{ orden.side }}</td>
-        <td>{{ orden.price }}</td>
-        <td>{{ orden.executedQty }}</td>
-        <td>{{ orden.inversion }}</td>
-        <td>{{ orden.status }}</td>
-        <td class="{{ 'ganancia' if orden.pnl >= 0 else 'perdida' }}">{{ orden.pnl }} USDT</td>
-        <td class="{{ 'ganancia' if orden.porcentaje >= 0 else 'perdida' }}">{{ orden.porcentaje }}%</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</body>
-</html>
-"""
+# --- LÓGICA DE TRADING (con TP/SL por ATR) ---
+def open_trade(symbol, side, quantity, atr_value):
+    try:
+        # 1. Abrir posición
+        order = client.futures_create_order(symbol=symbol, side=side, type='MARKET', quantity=quantity)
+        entry_price = float(order['avgPrice'])
+        
+        if entry_price == 0:
+            filled_order = client.futures_get_order(symbol=symbol, orderId=order['orderId'])
+            entry_price = float(filled_order['avgPrice'])
 
-@app.route("/", methods=["POST"])
+        # 2. Guardar en la BD
+        conn = get_db_connection()
+        conn.execute(
+            'INSERT INTO trades (symbol, side, quantity, entry_price, status) VALUES (?, ?, ?, ?, ?)',
+            (symbol, 'LONG' if side == 'BUY' else 'SHORT', quantity, entry_price, 'OPEN')
+        )
+        conn.commit()
+        conn.close()
+
+        # 3. Calcular y colocar TP/SL con ATR
+        atr_value = float(atr_value)
+        sl_multiplier = 1.5
+        tp_rr_ratio = 2.0
+        sl_distance = atr_value * sl_multiplier
+        tp_distance = sl_distance * tp_rr_ratio
+
+        if side == 'BUY':
+            sl_price = round(entry_price - sl_distance, 2)
+            tp_price = round(entry_price + tp_distance, 2)
+            close_side = 'SELL'
+        else:
+            sl_price = round(entry_price + sl_distance, 2)
+            tp_price = round(entry_price - tp_distance, 2)
+            close_side = 'BUY'
+            
+        client.futures_create_order(symbol=symbol, side=close_side, type='TAKE_PROFIT_MARKET', stopPrice=tp_price, closePosition=True, quantity=quantity)
+        client.futures_create_order(symbol=symbol, side=close_side, type='STOP_MARKET', stopPrice=sl_price, closePosition=True, quantity=quantity)
+        
+        return {"status": "success", "message": f"Trade {side} en {entry_price}, TP: {tp_price}, SL: {sl_price}"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# --- ENDPOINTS (RUTAS WEB) ---
+@app.route('/')
+def dashboard():
+    return render_template('index.html')
+
+@app.route('/api/positions')
+def get_positions():
+    # Esta función es la misma que te di antes, no cambia.
+    # ... (busca las operaciones abiertas, calcula el PnL y las devuelve como JSON)
+    conn = get_db_connection()
+    open_trades = conn.execute('SELECT * FROM trades WHERE status = "OPEN"').fetchall()
+    conn.close()
+    
+    positions_with_pnl = []
+    for trade in open_trades:
+        try:
+            current_price = float(client.get_symbol_ticker(symbol=trade['symbol'])['price'])
+            if trade['side'] == 'LONG':
+                pnl = (current_price - trade['entry_price']) * trade['quantity']
+            else:
+                pnl = (trade['entry_price'] - current_price) * trade['quantity']
+            
+            position_dict = dict(trade)
+            position_dict['current_price'] = current_price
+            position_dict['unrealized_pnl'] = pnl
+            positions_with_pnl.append(position_dict)
+        except Exception as e:
+            print(f"Error calculando PnL para {trade['symbol']}: {e}")
+
+    return jsonify(positions_with_pnl)
+
+@app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    action = data.get("message")
+    if data.get('passphrase') != WEBHOOK_PASSPHRASE:
+        return {"status": "error", "message": "No autorizado"}, 401
+    
+    result = open_trade(
+        symbol=data['symbol'],
+        side=data['side'],
+        quantity=float(data['quantity']),
+        atr_value=data['atr']
+    )
+    return jsonify(result)
 
-    if action == "LONG":
-        client.order_market_buy(symbol=SYMBOL, quantity=QUANTITY)
-        print("✅ Orden LONG enviada")
-        return {"status": "long order sent"}, 200
-
-    elif action == "SHORT":
-        client.order_market_sell(symbol=SYMBOL, quantity=QUANTITY)
-        print("✅ Orden SHORT enviada")
-        return {"status": "short order sent"}, 200
-
-    return {"status": "no action"}, 400
-
-@app.route("/panel")
-def panel():
-    actual_price = float(client.get_symbol_ticker(symbol=SYMBOL)["price"])
-    orders = client.get_all_orders(symbol=SYMBOL)
-    account = client.get_account()
-    balances = {b["asset"]: float(b["free"]) for b in account["balances"]}
-    usdt_balance = round(balances.get("USDT", 0), 2)
-    btc_balance = round(balances.get("BTC", 0), 6)
-
-    ordenes_visibles = []
-    for o in orders:
-        if o["status"] == "FILLED" and float(o["executedQty"]) > 0:
-            price_entry = float(o["price"])
-            qty = float(o["executedQty"])
-            inversion = round(price_entry * qty, 2)
-            ganancia = (actual_price - price_entry) * qty if o["side"] == "BUY" else (price_entry - actual_price) * qty
-            porcentaje = (ganancia / inversion) * 100 if inversion > 0 else 0
-
-            ordenes_visibles.append({
-                "side": o["side"],
-                "price": o["price"],
-                "executedQty": o["executedQty"],
-                "status": o["status"],
-                "inversion": inversion,
-                "pnl": round(ganancia, 2),
-                "porcentaje": round(porcentaje, 2)
-            })
-
-    return render_template_string(html_template,
-                                  ordenes=ordenes_visibles,
-                                  actual_price=round(actual_price, 2),
-                                  btc_balance=btc_balance,
-                                  usdt_balance=usdt_balance)
-
+# --- INICIO DE LA APLICACIÓN ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    init_db() # Crea la base de datos al iniciar
+    # El puerto lo gestiona Render, no es necesario especificarlo para producción
+    app.run()
+else:
+    # Esto se ejecuta cuando Render usa Gunicorn
+    init_db()
+
