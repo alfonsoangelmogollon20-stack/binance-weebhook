@@ -1,4 +1,5 @@
 # main.py - Versión final para GitHub/Render
+import time
 import os
 import sqlite3
 from flask import Flask, request, jsonify, render_template
@@ -45,6 +46,8 @@ def open_trade(symbol, side, quantity, atr_value):
     try:
             # 1. Abrir posición
     order = client.futures_create_order(symbol=symbol, side=side, type='MARKET', quantity=quantity)
+
+time.sleep(2) 
     
         # Hacemos una consulta para obtener los datos de la orden ya ejecutada
     order_details = client.futures_get_order(symbol=symbol, orderId=order['orderId'])
