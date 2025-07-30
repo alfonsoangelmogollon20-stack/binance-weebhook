@@ -141,9 +141,10 @@ def webhook():
 
 # --- INICIO DE LA APLICACIÓN ---
 if __name__ == "__main__":
-    init_db() # Crea la base de datos al iniciar
-    # El puerto lo gestiona Render, no es necesario especificarlo para producción
-    app.run()
+    init_db()
+    # Obtener el puerto de Render y configurar el host para que sea público
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
 else:
     # Esto se ejecuta cuando Render usa Gunicorn
     init_db()
