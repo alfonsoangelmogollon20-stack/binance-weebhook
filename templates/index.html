@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Trading Bot</title>
+    <style>
+        body { font-family: sans-serif; background-color: #131722; color: #d1d4dc; }
+        h1, h2 { color: #fff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border: 1px solid #2a2e39; text-align: left; }
+        th { background-color: #1e222d; }
+        .pnl-ganancia { color: #26a69a; font-weight: bold; }
+        .pnl-perdida { color: #ef5350; font-weight: bold; }
+        .side-long { color: #26a69a; }
+        .side-short { color: #ef5350; }
+    </style>
+</head>
+<body>
+    <h1>Panel de Operaciones</h1>
+    <h2>Posiciones Abiertas</h2>
+    <table id="positions-table">
+        <thead>
+            <tr>
+                <th>Símbolo</th>
+                <th>Lado (Side)</th>
+                <th>Precio Entrada</th>
+                <th>Precio Actual</th>
+                <th>Cantidad</th>
+                <th>PnL (USDT)</th>
+            </tr>
+        </thead>
+        <tbody id="positions-body">
+            </tbody>
+    </table>
+
+    <script>
+        async function fetchPositions() {
+            try {
+                const response = await fetch('/api/positions');
+                const positions = await response.json();
+                const tableBody = document.getElementById('positions-body');
+                
+                tableBody.innerHTML = ''; // Limpiar la tabla antes de actualizar
+
+                positions.forEach(pos => {
+                    const pnlClass = pos.unrealized_pnl >= 0 ? 'pnl-ganancia' : 'pnl-perdida';
+                    const sideClass = pos.side === 'LONG' ? 'side-long' : 'side-short';
+
+                    const row = `
+                        <tr>
+                            <td>${pos.symbol}</td>
+                            <td class="${sideClass}">${pos.side}</td>
+                            <td>$${pos.entry_price.toFixed(4)}</td>
+                            <td>$${pos.current_price.toFixed(4)}</td>
+                            <td>${pos.quantity}</td>
+                            <td class="${pnlClass}">$${pos.unrealized_pnl.toFixed(4)}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error("Error al cargar posiciones:", error);
+            }
+        }
+
+        // Cargar las posiciones al abrir la página y luego cada 5 segundos
+        fetchPositions();
+        setInterval(fetchPositions, 5000);
+    </script>
+</body>
+</html>
