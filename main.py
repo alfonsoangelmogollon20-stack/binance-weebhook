@@ -4,8 +4,8 @@ import requests
 
 app = Flask(__name__)
 
-PO_EMAIL = os.getenv("alfonso.angelmogollon20@gmail.com")
-PO_PASSWORD = os.getenv("baja2016")
+PO_EMAIL = os.getenv("PO_EMAIL")
+PO_PASSWORD = os.getenv("PO_PASSWORD")
 
 MONTO = 15
 EXPIRACION = 5
@@ -14,8 +14,8 @@ BASE_URL = "https://pocketoption.com/api"  # Ajusta si cambia la API
 
 def obtener_token():
     resp = requests.post(f"{BASE_URL}/login", data={
-        "email": alfonso.angelmogollon20@gmail.com,
-        "password": baja2016
+        "email": PO_EMAIL,
+        "password": PO_PASSWORD
     })
     if resp.status_code == 200:
         return resp.json().get("token")
