@@ -1,2 +1,1 @@
 flask
-git+https://github.com/AustinBirch/pocketoption-api.git@master
