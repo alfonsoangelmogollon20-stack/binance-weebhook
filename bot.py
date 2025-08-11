@@ -1,110 +1,68 @@
-import time, math, asyncio, json, threading
-from datetime import datetime
+import os
+from flask import Flask, request, jsonify
 from pocketoptionapi.stable_api import PocketOption
-import pocketoptionapi.global_value as global_value
-import talib.abstract as ta
-import numpy as np
-import pandas as pd
-import indicators as qtpylib
 
-global_value.loglevel = 'INFO'
+# --- CONFIGURACIÓN ---
+SSID = os.getenv("SSID")
+app = Flask(__name__) # Inicia la aplicación web
 
-# Session configuration
-start_counter = time.perf_counter()
-
-### REAL SSID Format::
-#ssid = """42["auth",{"session":"a:4:{s:10:\\"session_id\\";s:32:\\"aa11b2345c67d89e0f1g23456h78i9jk\\";s:10:\\"ip_address\\";s:11:\\"11.11.11.11\\";s:10:\\"user_agent\\";s:111:\\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36\\";s:13:\\"last_activity\\";i:1234567890;}1234a5b678901cd2efghi34j5678kl90","isDemo":0,"uid":12345678,"platform":2}]"""
-#demo = False
-
-### DEMO SSID Format::
-#ssid = """42["auth",{"session":"abcdefghijklm12nopqrstuvwx","isDemo":1,"uid":12345678,"platform":2}]"""
-#demo = True
-
-ssid = """42["auth",{"session":"abcdefghijklm12nopqrstuvwx","isDemo":1,"uid":12345678,"platform":2}]"""
-demo = True
-
-min_payout = 80
-period = 60
-expiration = 60
-api = PocketOption(ssid,demo)
-
-# Connect to API
-api.connect()
-
-
-def get_payout():
+# --- LÓGICA DEL WEBHOOK ---
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    """
+    Esta función se activa cuando TradingView envía una alerta a esta URL.
+    """
     try:
-        d = global_value.PayoutData
-        d = json.loads(d)
-        for pair in d:
-            # |0| |  1  |  |  2  |  |  3  | |4 | 5 |6 | 7 | 8| 9| 10 |11| 12| 13        | 14   | | 15,                                                                                                                                                                                     |  16| 17| 18        |
-            # [5, '#AAPL', 'Apple', 'stock', 2, 50, 60, 30, 3, 0, 170, 0, [], 1743724800, False, [{'time': 60}, {'time': 120}, {'time': 180}, {'time': 300}, {'time': 600}, {'time': 900}, {'time': 1800}, {'time': 2700}, {'time': 3600}, {'time': 7200}, {'time': 10800}, {'time': 14400}], -1, 60, 1743784500],
-            if len(pair) == 19:
-                global_value.logger('id: %s, name: %s, typ: %s, active: %s' % (str(pair[1]), str(pair[2]), str(pair[3]), str(pair[14])), "DEBUG")
-                #if pair[14] == True and pair[5] >= min_payout and "_otc" not in pair[1] and pair[3] == "currency":         # Get all non OTC Currencies with min_payout
-                if pair[14] == True and pair[5] >= min_payout and "_otc" in pair[1]:                                       # Get all OTC Markets with min_payout
-                #if pair[14] == True and pair[3] == "cryptocurrency" and pair[5] >= min_payout and "_otc" not in pair[1]:   # Get all non OTC Cryptocurrencies
-                #if pair[14] == True:                                                                                       # Get All that online
-                    p = {}
-                    p['id'] = pair[0]
-                    p['payout'] = pair[5]
-                    p['type'] = pair[3]
-                    global_value.pairs[pair[1]] = p
-        return True
-    except:
-        return False
+        # 1. Recibir los datos de la alerta de TradingView
+        data = request.json
+        print(f"Alerta recibida: {data}")
 
+        # 2. Extraer los datos importantes de la alerta
+        #    IMPORTANTE: El formato exacto depende de cómo configures el
+        #    mensaje de la alerta en TradingView.
+        #    Ejemplo de mensaje en TradingView:
+        #    {"asset": "EURUSD", "action": "call", "amount": 15, "expiration": 5}
+        
+        asset = data.get('asset')
+        action = data.get('action') # "call" o "put"
+        amount = int(data.get('amount'))
+        expiration = int(data.get('expiration'))
 
-def get_df():
-    try:
-        i = 0
-        for pair in global_value.pairs:
-            i += 1
-            df = api.get_candles(pair, period)
-            global_value.logger('%s (%s/%s)' % (str(pair), str(i), str(len(global_value.pairs))), "INFO")
-            time.sleep(1)
-        return True
-    except:
-        return False
+        if not all([asset, action, amount, expiration]):
+            return jsonify({'status': 'error', 'message': 'Faltan datos en la alerta'}), 400
 
+        # 3. Conectar y ejecutar la operación
+        api = PocketOption(SSID)
+        api.connect()
 
-def buy(amount, pair, action, expiration):
-    global_value.logger('%s, %s, %s, %s' % (str(amount), str(pair), str(action), str(expiration)), "INFO")
-    result = api.buy(amount=amount, active=pair, action=action, expirations=expiration)
-    i = result[1]
-    result = api.check_win(i)
-    if result:
-        global_value.logger(str(result), "INFO")
-
-
-def buy2(amount, pair, action, expiration):
-    global_value.logger('%s, %s, %s, %s' % (str(amount), str(pair), str(action), str(expiration)), "INFO")
-    result = api.buy(amount=amount, active=pair, action=action, expirations=expiration)
-
-
-def make_df(df0, history):
-    df1 = pd.DataFrame(history).reset_index(drop=True)
-    df1 = df1.sort_values(by='time').reset_index(drop=True)
-    df1['time'] = pd.to_datetime(df1['time'], unit='s')
-    df1.set_index('time', inplace=True)
-    # df1.index = df1.index.floor('1s')
-
-    df = df1['price'].resample(f'{period}s').ohlc()
-    df.reset_index(inplace=True)
-    df = df.loc[df['time'] < datetime.fromtimestamp(wait(False))]
-
-    if df0 is not None:
-        ts = datetime.timestamp(df.loc[0]['time'])
-        for x in range(0, len(df0)):
-            ts2 = datetime.timestamp(df0.loc[x]['time'])
-            if ts2 < ts:
-                df = df._append(df0.loc[x], ignore_index = True)
+        if api.check_connect():
+            print(f"Ejecutando operación: {action.upper()} de ${amount} en {asset} por {expiration} min.")
+            
+            # Cambia a cuenta de práctica. ¡¡COMENTA ESTA LÍNEA PARA OPERAR EN REAL!!
+            api.change_balance("PRACTICE") 
+            
+            success = api.buy(amount=amount, asset=asset, action=action, anaysis_time=expiration)
+            
+            if success:
+                print("Operación abierta con éxito.")
+                return jsonify({'status': 'ok', 'message': 'Operación abierta'}), 200
             else:
-                break
-        df = df.sort_values(by='time').reset_index(drop=True)
-        df.set_index('time', inplace=True)
-        df.reset_index(inplace=True)
+                print("Error al abrir la operación.")
+                return jsonify({'status': 'error', 'message': 'No se pudo abrir la operación'}), 500
+        else:
+            return jsonify({'status': 'error', 'message': 'No se pudo conectar a Pocket Option'}), 500
 
+    except Exception as e:
+        print(f"Error procesando la alerta: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+if __name__ == '__main__':
+    # Render usa Gunicorn para ejecutar Flask, por lo que esta parte
+    # se usa solo si ejecutas el bot en tu propia computadora.
+    # No es necesario cambiar el comando de inicio en Render.
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+    
     return df
 
 
