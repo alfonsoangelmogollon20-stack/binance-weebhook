@@ -25,7 +25,7 @@ async def execute_trade_logic(data):
     api = PocketOption(ssid=SSID, demo=True)
     
     # Usamos 'await' porque connect() es una operación asíncrona
-    await api.connect()
+    api.connect()
 
     if api.check_connect():
         print(f"Ejecutando operación: {action.upper()} de ${amount} en {asset} por {expiration} min.")
