@@ -1,56 +1,41 @@
 from flask import Flask, request, jsonify
 import os
-import requests
+from pocketoption import PocketOption
 
 app = Flask(__name__)
 
+# Leer credenciales de variables de entorno
 PO_EMAIL = os.getenv("PO_EMAIL")
 PO_PASSWORD = os.getenv("PO_PASSWORD")
 
 MONTO = 15
-EXPIRACION = 5
+EXPIRACION = 5  # minutos
 
-BASE_URL = "https://pocketoption.com/api"  # Ajusta si cambia la API
-
-def obtener_token():
-    resp = requests.post(f"{BASE_URL}/login", data={
-        "email": PO_EMAIL,
-        "password": PO_PASSWORD
-    })
-    if resp.status_code == 200:
-        return resp.json().get("token")
-    return None
-
-def abrir_operacion(token, par, direccion):
-    payload = {
-        "symbol": par,
-        "amount": MONTO,
-        "direction": direccion.lower(),  # "call" o "put"
-        "expiration": EXPIRACION,
-        "demo": True
-    }
-    headers = {"Authorization": f"Bearer {token}"}
-    resp = requests.post(f"{BASE_URL}/trade", json=payload, headers=headers)
-    return resp.json()
+# Inicializar cliente Pocket Option
+client = PocketOption(email=PO_EMAIL, password=PO_PASSWORD)
+client.connect()
 
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    par = data.get("symbol", "").upper()
-    direccion = data.get("action", "").upper()  # CALL o PUT
+    symbol = data.get("symbol", "").upper()
+    action = data.get("action", "").lower()  # 'call' o 'put'
 
-    if not par or not direccion:
-        return jsonify({"error": "Datos incompletos"}), 400
+    if not symbol or action not in ["call", "put"]:
+        return jsonify({"error": "Datos inválidos"}), 400
 
-    token = obtener_token()
-    if not token:
-        return jsonify({"error": "No se pudo autenticar"}), 500
-
-    respuesta = abrir_operacion(token, par, direccion)
-    if "error" not in respuesta:
-        return jsonify({"status": "OK", "detalle": respuesta}), 200
+    if client.is_connected():
+        success = client.buy(MONTO, symbol, action, EXPIRACION)
+        if success:
+            return jsonify({"status": "Operación abierta"}), 200
+        else:
+            return jsonify({"error": "Error al abrir operación"}), 500
     else:
-        return jsonify({"status": "ERROR", "detalle": respuesta}), 500
+        return jsonify({"error": "No conectado a Pocket Option"}), 500
+
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot Pocket Option activo", 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
