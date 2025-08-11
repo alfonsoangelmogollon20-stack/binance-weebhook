@@ -1,9 +1,9 @@
 # Usa una imagen oficial de Python como base
 FROM python:3.9-slim
 
-# Instala herramientas para compilar, descarga el código de TA-Lib y lo compila
+# Instala herramientas para compilar y git, descarga el código de TA-Lib y lo compila
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential wget git && \\
+    apt-get install -y --no-install-recommends build-essential wget git && \
     wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
     tar -xzf ta-lib-0.4.0-src.tar.gz && \
     cd ta-lib && \
@@ -12,6 +12,7 @@ RUN apt-get update && \
     make install && \
     cd .. && \
     rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
+
 
 
 # Establece el directorio de trabajo dentro del contenedor
