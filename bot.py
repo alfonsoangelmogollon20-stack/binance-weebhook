@@ -34,7 +34,7 @@ async def execute_trade_logic(data):
         success, _ = await api.buy(amount=amount, asset=asset, action=action, anaysis_time=expiration)
         
         # Cerramos la conexión para liberar recursos
-        api.close()
+        
 
         if success:
             print("Operación abierta con éxito.")
@@ -42,7 +42,7 @@ async def execute_trade_logic(data):
         else:
             raise ConnectionError("La API no pudo abrir la operación.")
     else:
-        api.close()
+        
         raise ConnectionError("No se pudo conectar a Pocket Option.")
 
 
