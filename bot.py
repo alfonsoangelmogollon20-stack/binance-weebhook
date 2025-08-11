@@ -32,7 +32,7 @@ def webhook():
             return jsonify({'status': 'error', 'message': 'Faltan datos en la alerta'}), 400
 
         # 3. Conectar y ejecutar la operación
-        api = PocketOption(SSID)
+        api = PocketOption(ssid=SSID, demo=True)
         api.connect()
 
         if api.check_connect():
