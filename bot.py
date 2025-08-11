@@ -12,6 +12,17 @@ async def execute_trade_logic(data):
     """
     Esta función asíncrona maneja la conexión y la operación con la API.
     """
+    # --- LÍNEA DE DEPURACIÓN ---
+    print(f"DEBUG: Intentando conectar con el SSID: '{SSID}'")
+    # -------------------------
+
+    print("Iniciando lógica de trade asíncrona...")
+    asset = data.get('asset')
+    # ... (el resto de la función sigue igual)
+
+    """
+    Esta función asíncrona maneja la conexión y la operación con la API.
+    """
     print("Iniciando lógica de trade asíncrona...")
     asset = data.get('asset')
     action = data.get('action')
