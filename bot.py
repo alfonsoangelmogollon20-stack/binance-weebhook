@@ -20,7 +20,7 @@ async def execute_trade_logic(data):
         raise ValueError("Faltan datos en la alerta.")
 
     # Usamos el SSID completo que capturamos del navegador
-    api = PocketOption(ssid=SSID)
+    api = PocketOption(ssid=SSID, demo=True)
     api.connect()
 
     if api.check_connect():
