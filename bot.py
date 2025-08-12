@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from pocketoptionapi.stable_api import PocketOption
 
 # --- CONFIGURACIÓN ---
-SSID = os.getenv("SSID")
+SSID = 42["auth",{"session":"gqep422ie95ar8uabq0q9nsdsf","isDemo":1,"uid":107695044,"platform":2,"isFastHistory":true,"isOptimized":true}]
 app = Flask(__name__)
 
 # --- FUNCIÓN ASÍNCRONA PARA OPERAR ---
