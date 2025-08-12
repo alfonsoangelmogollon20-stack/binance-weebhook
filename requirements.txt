@@ -1,4 +1,2 @@
 Flask
-pandas
-TA-Lib
 git+https://github.com/Mastaaa1987/PocketOptionAPI-v2.git#egg=PocketOptionAPI
