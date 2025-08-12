@@ -19,18 +19,21 @@ print(connect)
 async def execute_trade_logic(data):
     print(f"DEBUG: Intentando conectar con el SSID completo: '{ssid}'")
 
-    asset = data.get('asset')
+    # Cambiar 'asset' por 'symbol'
+    symbol = data.get('asset')  # 'asset' debe ser 'symbol'
     action = data.get('action')
     amount = int(data.get('amount'))
     expiration = int(data.get('expiration'))
 
-    if not asset or not action or not isinstance(amount, int) or not isinstance(expiration, int):
+    if not symbol or not action or not isinstance(amount, int) or not isinstance(expiration, int):
         raise ValueError("Faltan datos o son inválidos.")
 
-  
     if api.check_connect():
-        print(f"Ejecutando operación: {action.upper()} de ${amount} en {asset} por {expiration} min.")
-        success, _ = await api.buy(amount=amount, asset=asset, action=action, analysis_time=expiration)
+        print(f"Ejecutando operación: {action.upper()} de ${amount} en {symbol} por {expiration} min.")
+        
+        # Se cambia 'asset' a 'symbol'
+        success, _ = await api.buy(amount=amount, symbol=symbol, action=action, analysis_time=expiration)
+        
         if success:
             print("Operación abierta con éxito.")
             return {'status': 'ok', 'message': 'Operación abierta'}
@@ -38,6 +41,8 @@ async def execute_trade_logic(data):
             raise ConnectionError("La API no pudo abrir la operación.")
     else:
         raise ConnectionError("No se pudo conectar a Pocket Option.")
+
+
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
