@@ -1,29 +1,18 @@
-# Usa una imagen oficial de Python como base
+# Usar una imagen base de Python
 FROM python:3.9-slim
 
-# Instala herramientas para compilar y git, descarga el código de TA-Lib y lo compila
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential wget git && \
-    wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && \
-    tar -xzf ta-lib-0.4.0-src.tar.gz && \
-    cd ta-lib && \
-    ./configure --prefix=/usr && \
-    make && \
-    make install && \
-    cd .. && \
-    rm -rf ta-lib ta-lib-0.4.0-src.tar.gz
+# Instalar git para poder descargar la API desde GitHub
+RUN apt-get update && apt-get install -y git
 
-
-
-# Establece el directorio de trabajo dentro del contenedor
+# Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copia el archivo de requerimientos y los instala
+# Copiar e instalar los requerimientos
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
-# Copia el resto del código de tu proyecto al contenedor
+# Copiar el resto del código
 COPY . .
 
-# Comando que se ejecutará cuando el contenedor inicie
+# Comando para ejecutar el bot
 CMD ["python", "bot.py"]
