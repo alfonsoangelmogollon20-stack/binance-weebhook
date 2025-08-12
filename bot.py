@@ -15,7 +15,7 @@ api = PocketOption(ssid,demo)
 # Conecta à API
 connect=api.connect()
 print(connect)
-time.sleep(10)
+
 async def execute_trade_logic(data):
     print(f"DEBUG: Intentando conectar con el SSID completo: '{ssid}'")
 
