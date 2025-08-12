@@ -19,15 +19,13 @@ async def execute_trade_logic(data):
     if not all([asset, action, amount, expiration]):
         raise ValueError("Faltan datos en la alerta.")
 
-    # Usamos el SSID completo que capturamos del navegador
-    api = PocketOption(ssid=SSID, demo=True)
+    # Conectamos usando el SSID y el argumento 'demo'
+    api = PocketOption(ssid=SSID, demo=True) # Pon demo=False para cuenta real
     api.connect()
 
     if api.check_connect():
         print(f"Ejecutando operación: {action.upper()} de ${amount} en {asset} por {expiration} min.")
-        
         success, _ = await api.buy(amount=amount, asset=asset, action=action, anaysis_time=expiration)
-        
         if success:
             print("Operación abierta con éxito.")
             return {'status': 'ok', 'message': 'Operación abierta'}
@@ -42,9 +40,7 @@ def webhook():
     try:
         data = request.json
         print(f"Alerta recibida: {data}")
-        
         result = asyncio.run(execute_trade_logic(data))
-        
         return jsonify(result), 200
     except Exception as e:
         print(f"Error procesando la alerta: {e}")
