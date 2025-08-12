@@ -3,31 +3,28 @@ import asyncio
 from flask import Flask, request, jsonify
 from pocketoptionapi.stable_api import PocketOption
 
-# --- CONFIGURACIÓN ---
 app = Flask(__name__)
 
 ssid = """42["auth",{"session":"gqep422ie95ar8uabq0q9nsdsf","isDemo":1,"uid":107695044,"platform":2,"isFastHistory":true,"isOptimized":true}]"""
 demo = True
 
-# --- FUNCIÓN ASÍNCRONA PARA OPERAR ---
 async def execute_trade_logic(data):
-    print(f"DEBUG: Intentando conectar con el SSID completo: '{SSID}'")
-    
+    print(f"DEBUG: Intentando conectar con el SSID completo: '{ssid}'")
+
     asset = data.get('asset')
     action = data.get('action')
     amount = int(data.get('amount'))
     expiration = int(data.get('expiration'))
 
-    if not all([asset, action, amount, expiration]):
-        raise ValueError("Faltan datos en la alerta.")
+    if not asset or not action or not isinstance(amount, int) or not isinstance(expiration, int):
+        raise ValueError("Faltan datos o son inválidos.")
 
-    # Conectamos usando el SSID y el argumento 'demo'
-    api = PocketOption(ssid,demo) # Pon demo=False para cuenta real
+    api = PocketOption(ssid, demo)
     api.connect()
 
     if api.check_connect():
         print(f"Ejecutando operación: {action.upper()} de ${amount} en {asset} por {expiration} min.")
-        success, _ = await api.buy(amount=amount, asset=asset, action=action, anaysis_time=expiration)
+        success, _ = await api.buy(amount=amount, asset=asset, action=action, analysis_time=expiration)
         if success:
             print("Operación abierta con éxito.")
             return {'status': 'ok', 'message': 'Operación abierta'}
@@ -36,7 +33,6 @@ async def execute_trade_logic(data):
     else:
         raise ConnectionError("No se pudo conectar a Pocket Option.")
 
-# --- WEBHOOK (PUERTA DE ENTRADA) ---
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
