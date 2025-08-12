@@ -14,5 +14,5 @@ RUN pip install -r requirements.txt
 # Copiar el resto del código
 COPY . .
 
-# Comando para ejecutar el bot
+# Comando para ejecutar el bot webhook
 CMD ["python", "bot.py"]
