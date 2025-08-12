@@ -34,7 +34,7 @@ async def execute_trade_logic(data):
         print(f"Ejecutando operación: {action.upper()} de ${amount} por {expiration} min.")
         
         # Llamar a la función buy() sin 'symbol' ni 'asset'
-        success, _ = await api.buy(amount=amount, action=action, expiration=expiration)
+        success, _ = await api.buy(amount=amount, active=asset, action=action, expirations=expiration)
 
         print(f"DEBUG: Resultado de la compra -> success: {success}")
         
