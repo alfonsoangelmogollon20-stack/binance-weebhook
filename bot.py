@@ -2,12 +2,20 @@ import os
 import asyncio
 from flask import Flask, request, jsonify
 from pocketoptionapi.stable_api import PocketOption
+import logging
+logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(message)s')
 
 app = Flask(__name__)
 
-ssid = """42["auth",{"sessionToken":"ef6650ab92e775a54c08a8f46df11b75","uid":"107695044","lang":"es","currentUrl":"cabinet/demo-quick-high-low","isChart":1}]"""
-demo = True
+# Configuração da sessão
+ssid="""42["auth",{"session":"gqep422ie95ar8uabq0q9nsdsf","isDemo":1,"uid":107695044,"platform":2,"isFastHistory":true,"isOptimized":true}]"""
+demo=True
+api = PocketOption(ssid,demo)
 
+# Conecta à API
+connect=api.connect()
+print(connect)
+time.sleep(10)
 async def execute_trade_logic(data):
     print(f"DEBUG: Intentando conectar con el SSID completo: '{ssid}'")
 
@@ -19,9 +27,7 @@ async def execute_trade_logic(data):
     if not asset or not action or not isinstance(amount, int) or not isinstance(expiration, int):
         raise ValueError("Faltan datos o son inválidos.")
 
-    api = PocketOption(ssid, demo)
-    api.connect()
-
+  
     if api.check_connect():
         print(f"Ejecutando operación: {action.upper()} de ${amount} en {asset} por {expiration} min.")
         success, _ = await api.buy(amount=amount, asset=asset, action=action, analysis_time=expiration)
