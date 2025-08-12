@@ -5,7 +5,7 @@ from pocketoptionapi.stable_api import PocketOption
 
 app = Flask(__name__)
 
-ssid = """42["auth",{"session":"gqep422ie95ar8uabq0q9nsdsf","isDemo":1,"uid":107695044,"platform":2,"isFastHistory":true,"isOptimized":true}]"""
+ssid = 42["auth",{"sessionToken":"ef6650ab92e775a54c08a8f46df11b75","uid":"107695044","lang":"es","currentUrl":"cabinet/demo-quick-high-low","isChart":1}]	"""
 demo = True
 
 async def execute_trade_logic(data):
